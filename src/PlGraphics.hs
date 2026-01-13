@@ -61,28 +61,37 @@ display =
     resizeWindow inWindow 512 512
 
     stdGen <- initStdGen
-    let (istate, _) = generateInitialState 100 stdGen
+    let (istate, _) = generateInitialState 1000 stdGen
 
-    onDisplay inWindow istate
-    closeWindow inWindow
+    currentTime <- GLFW.getTime
+    case currentTime of 
+       Nothing -> return ()
+       Just t -> do
+          onDisplay inWindow istate t
+          closeWindow inWindow
 
 -- Render loop, also calls the logic    
-onDisplay :: GLFW.Window -> ParticleState -> IO ()
-onDisplay win state =
+onDisplay :: GLFW.Window -> ParticleState -> Double -> IO ()
+onDisplay win state ptime =
   do
-    GL.clearColor $= Color4 0.2 0.2 0.2 1
-    GL.clear [ColorBuffer]
+    currentTime <- GLFW.getTime
+    case currentTime of
+        Nothing -> return ()
+        Just t -> do
+    
+          GL.clearColor $= Color4 0.2 0.2 0.2 1
+          GL.clear [ColorBuffer]
 
-    let newstate = simulateStep 0.01 state
-    renderState newstate
+          let newstate = simulateStep (t - ptime) state
+          renderState newstate
 
-    GL.flush
+          GL.flush
 
-    GLFW.swapBuffers win
-   
-    forever $ do
-       GLFW.pollEvents
-       onDisplay win newstate
+          GLFW.swapBuffers win
+        
+          forever $ do
+            GLFW.pollEvents
+            onDisplay win newstate t
 
 renderState :: ParticleState -> IO ()
 renderState state = do 
