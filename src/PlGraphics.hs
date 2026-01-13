@@ -65,7 +65,7 @@ display =
       colours = 5,
       width = 900,
       height = 900,
-      wforcemult = 10.0,
+      wforcemult = 1.0,
       pforcemult = 10.0,
       forceMatrix = mtx
       }
