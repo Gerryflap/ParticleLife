@@ -49,9 +49,6 @@ instance LookupTable KdTree where
 fromList :: [Particle] -> KdTree
 fromList ps = insertAll' 0 ps
 
-insertAll Empty xs = insertAll' 0 xs
-insertAll _ _ = error "insertAll received non-empty tree, this is currently not implemented!"
-
 insertAll' :: Int -> [Particle] -> KdTree
 insertAll' _ []     = Empty
 insertAll' _ [x]    = Leaf x

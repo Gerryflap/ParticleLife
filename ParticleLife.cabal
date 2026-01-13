@@ -42,8 +42,9 @@ library
     , OpenGL
     , array
     , base >=4.20 && <5
-    , parallel
+    , mtl
     , random >=1.3
+    , vector
   default-language: Haskell2010
 
 executable ParticleLife-exe
@@ -61,8 +62,9 @@ executable ParticleLife-exe
     , ParticleLife
     , array
     , base >=4.20 && <5
-    , parallel
+    , mtl
     , random >=1.3
+    , vector
   default-language: Haskell2010
 
 test-suite ParticleLife-test
@@ -81,6 +83,7 @@ test-suite ParticleLife-test
     , ParticleLife
     , array
     , base >=4.20 && <5
-    , parallel
+    , mtl
     , random >=1.3
+    , vector
   default-language: Haskell2010

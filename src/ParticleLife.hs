@@ -5,9 +5,6 @@ module ParticleLife (
     simulateStep,
     ParticleState,
     Particle(..),
-    position,
-    velocity,
-    colourIdx,
     computeForce,
     generateRandomForceMatrix,
     SimulationParameters(..),
@@ -18,13 +15,16 @@ import System.Random
 import Data.Array
 import PlDefinitions
 import KdTrees
-
+import Control.Monad.State
+import qualified Data.Vector as V
 
 type ForceMatrix = Array (Int, Int) Double
 
 data SimulationParameters = PLifeSP {
-    width :: Double,
-    height :: Double,
+    -- Number of unique colour indices
+    colours :: Int,
+    width :: Int,
+    height :: Int,
     -- Multiplier of the wall force
     wforcemult :: Double,
     -- Multiplier of the particle force
@@ -32,8 +32,8 @@ data SimulationParameters = PLifeSP {
     forceMatrix :: ForceMatrix
 } deriving (Show)
 
-generateRandomForceMatrix :: SplitGen g => g -> (ForceMatrix, g)
-generateRandomForceMatrix gen = (listArray ((1,1), (3,3)) (uniformRs (-1.0, 1.0) cgen), newgen)
+generateRandomForceMatrix :: SplitGen g => Int -> g -> (ForceMatrix, g)
+generateRandomForceMatrix ncolours gen = (listArray ((1,1), (ncolours,ncolours)) (uniformRs (-1.0, 1.0) cgen), newgen)
                                 where
                                     (cgen, newgen) = splitGen gen
 
@@ -41,15 +41,18 @@ generateRandomForceMatrix gen = (listArray ((1,1), (3,3)) (uniformRs (-1.0, 1.0)
 simulateStep :: SimulationParameters -> Double -> ParticleState -> ParticleState
 simulateStep sp dt pstate = pstate''
                         where
-                            lt = fromList pstate
+                            lt = fromList $ V.toList pstate
                             -- Update velocities
-                            pstate' = map (computeVelocity sp lt dt) pstate
+                            pstate' = V.map (computeVelocity sp lt dt) pstate
                             -- Move particles
-                            pstate'' = map (moveParticle dt) pstate'
+                            pstate'' = V.map (moveParticle dt) pstate'
 
+-- Combine 2 tuples using the same function f for the 2 left and the 2 right values
 tcomb :: (Double -> Double -> Double) -> (Double, Double) -> (Double, Double) -> (Double, Double)
 tcomb f (x1, y1) (x2, y2) = (f x1 x2, f y1 y2)
 
+-- Combine 2 tuples by adding their values together
+tadd :: (Double, Double) -> (Double, Double) -> (Double, Double)
 tadd = tcomb (+)
 
 dampening :: Double
@@ -58,8 +61,8 @@ dampening = 0.95
 computeWallForce :: SimulationParameters -> Particle -> (Double, Double)
 computeWallForce sp p = (fx, fy)
                         where
-                            w = width sp
-                            h = height sp
+                            w = fromIntegral $ width sp
+                            h = fromIntegral $ height sp
                             (x, y) = position p
                             fx  | x < 0.0 = -x
                                 | x > w = w - x
@@ -98,32 +101,25 @@ moveParticle dt p = seq newPos $ p {position = newPos}
                     newPos = (x + vx * dt, y + vy * dt)
 
 
-generateRandomParticle :: RandomGen g => g -> (Particle, g)
-generateRandomParticle g = (P {position = (x, y), velocity = (vx, vy), colourIdx = cidx}, g3)
-                            where
-                                (x, g1) = uniformR (0.0, 1600.0) g
-                                (y, g2) = uniformR (0.0, 1000.0) g1
-                                (vx, g21) = uniformR (-10.0, 10.0) g2
-                                (vy, g22) = uniformR (-10.0, 10.0) g21
+generateRandomParticle :: RandomGen g => SimulationParameters -> State g Particle
+generateRandomParticle sp = do 
+    x <- state (uniformR (0.0, fromIntegral $ width sp))
+    y <- state (uniformR (0.0, fromIntegral $ height sp))
+    vx <- state (uniformR (-10.0, 10.0))
+    vy <- state (uniformR (-10.0, 10.0))
+    cidx <- state (uniformR (1, colours sp))
+    pure (P {position = (x, y), velocity = (vx, vy), colourIdx = cidx})
 
-                                -- Inclusive
-                                (cidx, g3) = uniformR (1, 3) g22
-
-
-generateInitialState :: RandomGen g => Int -> g -> (ParticleState, g)
-generateInitialState 0 gen = ([], gen)
-generateInitialState particlecount gen = (p : nparticles, nngen)
-                                        where
-                                            (nparticles, ngen) = generateInitialState (particlecount-1) gen
-                                            (p, nngen) = generateRandomParticle ngen
+generateInitialState :: RandomGen g => SimulationParameters -> Int -> g -> (ParticleState, g)
+generateInitialState sp particlecount gen = runState (V.replicateM particlecount (generateRandomParticle sp)) gen
 
 -- End of the "short" distance range (starts at 0 distance)
 dShort :: Double
-dShort = 10.0
+dShort = 5.0
 
 -- End of the medium range (starts at d_short), after this distance the particles will ignore eachother
 dMed :: Double
-dMed = 50.0
+dMed = 60.0
 
 -- Computes the repulsion or attraction force, based on the input force multiplier
 -- Particles will always repell eachother on close range

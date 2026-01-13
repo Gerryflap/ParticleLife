@@ -25,7 +25,8 @@ dependencies:
 - GLFW-b
 - random >= 1.3
 - array
-- parallel
+- vector
+- mtl
 
 ghc-options:
 - -Wall

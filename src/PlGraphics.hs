@@ -57,18 +57,24 @@ closeWindow win =
 display :: IO ()
 display =
   do
-    inWindow <- openWindow "Particle Life" (1600, 1000)
-    resizeWindow inWindow 1600 1000
+
 
     stdGen <- initStdGen
-    let (istate, g) = generateInitialState 5000 stdGen
+    let (mtx, stdGen2) = generateRandomForceMatrix 5 stdGen
     let sp = PLifeSP {
-      width = 1600,
-      height = 1000,
+      colours = 5,
+      width = 900,
+      height = 900,
       wforcemult = 10.0,
       pforcemult = 10.0,
-      forceMatrix = fst $ generateRandomForceMatrix g
+      forceMatrix = mtx
       }
+
+    let (istate, g) = generateInitialState sp 2000 stdGen2
+
+    inWindow <- openWindow "Particle Life" (width sp, height sp)
+    resizeWindow inWindow (width sp) (height sp)
+
 
     putStrLn $ "Using parameters: " ++ (show sp)
 
@@ -123,8 +129,12 @@ particlePosition p = GL.Vertex3 x y (0.0 :: GLfloat)
 
 -- Gets the rendering colour of the particle
 particolour :: Int -> GL.Color4 GL.GLfloat
-particolour 0 = Color4 0.6 0.6 1 1
-particolour 1 = Color4 1 0.6 0.6 1
-particolour 2 = Color4 0.6 1 0.6 1
-particolour x = particolour (mod x 3)
+particolour 1 = Color4 0.6 0.6 1.0 1
+particolour 2 = Color4 1.0 0.6 0.6 1
+particolour 3 = Color4 0.6 1.0 0.6 1
+particolour 4 = Color4 1.0 1.0 0.6 1
+particolour 5 = Color4 0.6 1.0 1.0 1
+particolour 6 = Color4 1.0 0.6 1.0 1
+particolour 7 = Color4 1.0 0.8 0.9 1
+particolour x = particolour (mod (x + 8) 8)
                   

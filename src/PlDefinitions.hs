@@ -6,6 +6,9 @@ module PlDefinitions (
     ParticleListLt(..),
 ) where
 
+import Data.Vector (Vector)
+
+
 data Particle = P {
     position :: (Double, Double),
     velocity :: (Double, Double),
@@ -18,7 +21,7 @@ distance pa1 pa2 = sqrt ((x1 - x2) ** 2.0 + (y1 - y2) ** 2.0)
                         (x1, y1) = position pa1
                         (x2, y2) = position pa2
 
-type ParticleState = [Particle]
+type ParticleState = Vector Particle
 
 class LookupTable lt where {
     -- Query the lookuptable with a particle and a radius around that particle, which should result in all particles that are within that range
