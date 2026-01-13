@@ -1,16 +1,21 @@
+{-# LANGUAGE InstanceSigs #-}
 
 module ParticleLife (
     generateInitialState,
     simulateStep,
     ParticleState,
-    Particle,
+    Particle(..),
     position,
     velocity,
     colourIdx,
-    computeForce
+    computeForce,
+    generateRandomForceMatrix,
+    SimulationParameters(..),
+    ForceMatrix
 ) where
 
 import System.Random
+import Data.Array
 
 data Particle = P {
     position :: (Double, Double),
@@ -34,15 +39,31 @@ class LookupTable lt where {
 newtype ParticleListLt = PListLt [Particle]
 
 instance LookupTable ParticleListLt where 
+    finalAllInRange :: ParticleListLt -> Particle -> Double -> [Particle]
     finalAllInRange (PListLt ps) p range = filter (\op -> range > distance p op) ps
 
+type ForceMatrix = Array (Int, Int) Double
+
+data SimulationParameters = PLifeSP {
+    width :: Double,
+    height :: Double,
+    -- Multiplier of the particle force
+    pforcemult :: Double,
+    forceMatrix :: ForceMatrix
+} deriving (Show)
+
+generateRandomForceMatrix :: SplitGen g => g -> (ForceMatrix, g)
+generateRandomForceMatrix gen = (listArray ((1,1), (3,3)) (uniformRs (-1.0, 1.0) cgen), newgen)
+                                where
+                                    (cgen, newgen) = splitGen gen
+
 -- Compute new velocities based on forces, and then move the particles according to those velocities
-simulateStep :: Double -> ParticleState -> ParticleState
-simulateStep dt pstate = pstate''
+simulateStep :: SimulationParameters -> Double -> ParticleState -> ParticleState
+simulateStep sp dt pstate = pstate''
                         where
                             lt = PListLt pstate
                             -- Update velocities
-                            pstate' = map (computeVelocity lt dt) pstate
+                            pstate' = map (computeVelocity sp lt dt) pstate
                             -- Move particles
                             pstate'' = map (moveParticle dt) pstate'
 
@@ -52,21 +73,39 @@ tcomb f (x1, y1) (x2, y2) = (f x1 x2, f y1 y2)
 tadd = tcomb (+)
 
 dampening :: Double
-dampening = 0.995
+dampening = 0.95
+
+computeWallForce :: SimulationParameters -> Particle -> (Double, Double)
+computeWallForce sp p = (fx, fy)
+                        where
+                            w = width sp
+                            h = height sp
+                            (x, y) = position p
+                            fx  | x < 0.0 = -x
+                                | x > w = w - x
+                                | otherwise = 0.0
+
+                            fy  | y < 0.0 = -y
+                                | y > h = h - y
+                                | otherwise = 0.0
+
 
 -- Compute new velocity of a particle without moving
-computeVelocity :: LookupTable lt => lt -> Double -> Particle -> Particle
-computeVelocity lt dt p = p {velocity = (vx', vy')}
+computeVelocity :: LookupTable lt => SimulationParameters -> lt -> Double -> Particle -> Particle
+computeVelocity sp lt dt p = p {velocity = (vx', vy')}
                         where
                             (vx, vy) = velocity p
                             -- Find all particles in dMed range that are not the current particle
                             inRangeParticles = filter (p /=) $ finalAllInRange lt p dMed
                             -- Particle force, sum of all in range particle forces
-                            (fpx, fpy) = foldl tadd (0.0, 0.0) $ map (computeParticleForce 1.0 p) inRangeParticles
-                            -- TODO: In the future we can compute a boundary force here if needed
+                            (fpx, fpy) = foldl tadd (0.0, 0.0) $ map (computeParticleForce sp p) inRangeParticles
+                            -- Wall force, pushes back on the particles when they exceed the bounds
+                            (fwx, fwy) = computeWallForce sp p
+                            pfmult = pforcemult sp
+                            (fx, fy) = (fpx * pfmult + fwx, fpy * pfmult + fwy)
                             --Dampening and velocity
-                            vx' = vx * (dampening ** dt) + fpx * dt
-                            vy' = vy * (dampening ** dt) + fpy * dt
+                            vx' = vx * (dampening ** dt) + fx * dt
+                            vy' = vy * (dampening ** dt) + fy * dt
 
 
 -- move particles with the set velocity
@@ -120,13 +159,16 @@ computeForce fmul dist  | dist <= dShort = -1 * (1.0 - dist/dShort)
                             mrange = dMed - dShort
 
 -- Computes the directional force on p1, caused by p2.
--- Using fmul as defined in computeForce above
-computeParticleForce :: Double -> Particle -> Particle -> (Double, Double)
-computeParticleForce fmul p1 p2 = (cosv * f, sinv * f)
+computeParticleForce :: SimulationParameters -> Particle -> Particle -> (Double, Double)
+computeParticleForce sp p1 p2 = (cosv * f, sinv * f)
                         where
+                            fmat = forceMatrix sp
+                            fmul = fmat ! (colourIdx p1, colourIdx p2)
                             (x1, y1) = position p1
                             (x2, y2) = position p2
                             d = distance p1 p2
                             sinv = (y2 - y1) / d
                             cosv = (x2 - x1) / d
                             f = computeForce fmul d
+
+                            

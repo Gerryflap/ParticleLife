@@ -57,22 +57,30 @@ closeWindow win =
 display :: IO ()
 display =
   do
-    inWindow <- openWindow "Particle Life" (512,512)
+    inWindow <- openWindow "Particle Life" (512, 512)
     resizeWindow inWindow 512 512
 
     stdGen <- initStdGen
-    let (istate, _) = generateInitialState 1000 stdGen
+    let (istate, g) = generateInitialState 500 stdGen
+    let sp = PLifeSP {
+      width = 512,
+      height = 512,
+      pforcemult = 10.0,
+      forceMatrix = fst $ generateRandomForceMatrix g
+      }
+
+    putStrLn $ "Using parameters: " ++ (show sp)
 
     currentTime <- GLFW.getTime
     case currentTime of 
        Nothing -> return ()
        Just t -> do
-          onDisplay inWindow istate t
+          onDisplay inWindow sp istate t
           closeWindow inWindow
 
 -- Render loop, also calls the logic    
-onDisplay :: GLFW.Window -> ParticleState -> Double -> IO ()
-onDisplay win state ptime =
+onDisplay :: GLFW.Window -> SimulationParameters -> ParticleState -> Double -> IO ()
+onDisplay win sp state ptime =
   do
     currentTime <- GLFW.getTime
     case currentTime of
@@ -82,7 +90,7 @@ onDisplay win state ptime =
           GL.clearColor $= Color4 0.2 0.2 0.2 1
           GL.clear [ColorBuffer]
 
-          let newstate = simulateStep (t - ptime) state
+          let newstate = simulateStep sp (t - ptime) state
           renderState newstate
 
           GL.flush
@@ -91,7 +99,7 @@ onDisplay win state ptime =
         
           forever $ do
             GLFW.pollEvents
-            onDisplay win newstate t
+            onDisplay win sp newstate t
 
 renderState :: ParticleState -> IO ()
 renderState state = do 

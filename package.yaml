@@ -20,10 +20,11 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/gerryflap/ParticleLife#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+- base >= 4.20 && < 5
 - OpenGL
 - GLFW-b
-- random
+- random >= 1.3
+- array
 
 ghc-options:
 - -Wall
@@ -44,6 +45,7 @@ executables:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
+    - -O2
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
