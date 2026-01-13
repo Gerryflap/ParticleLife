@@ -16,37 +16,17 @@ module ParticleLife (
 
 import System.Random
 import Data.Array
+import PlDefinitions
+import KdTrees
 
-data Particle = P {
-    position :: (Double, Double),
-    velocity :: (Double, Double),
-    colourIdx :: Int
-} deriving (Show, Eq)
-
-distance :: Particle -> Particle -> Double
-distance pa1 pa2 = sqrt ((x1 - x2) ** 2.0 + (y1 - y2) ** 2.0)
-                    where
-                        (x1, y1) = position pa1
-                        (x2, y2) = position pa2
-
-type ParticleState = [Particle]
-
-class LookupTable lt where {
-    -- Query the lookuptable with a particle and a radius around that particle, which should result in all particles that are within that range
-    finalAllInRange :: lt -> Particle -> Double -> [Particle]
-}
-
-newtype ParticleListLt = PListLt [Particle]
-
-instance LookupTable ParticleListLt where 
-    finalAllInRange :: ParticleListLt -> Particle -> Double -> [Particle]
-    finalAllInRange (PListLt ps) p range = filter (\op -> range > distance p op) ps
 
 type ForceMatrix = Array (Int, Int) Double
 
 data SimulationParameters = PLifeSP {
     width :: Double,
     height :: Double,
+    -- Multiplier of the wall force
+    wforcemult :: Double,
     -- Multiplier of the particle force
     pforcemult :: Double,
     forceMatrix :: ForceMatrix
@@ -61,7 +41,7 @@ generateRandomForceMatrix gen = (listArray ((1,1), (3,3)) (uniformRs (-1.0, 1.0)
 simulateStep :: SimulationParameters -> Double -> ParticleState -> ParticleState
 simulateStep sp dt pstate = pstate''
                         where
-                            lt = PListLt pstate
+                            lt = fromList pstate
                             -- Update velocities
                             pstate' = map (computeVelocity sp lt dt) pstate
                             -- Move particles
@@ -96,13 +76,14 @@ computeVelocity sp lt dt p = p {velocity = (vx', vy')}
                         where
                             (vx, vy) = velocity p
                             -- Find all particles in dMed range that are not the current particle
-                            inRangeParticles = filter (p /=) $ finalAllInRange lt p dMed
+                            inRangeParticles = filter (p /=) $ findAllInRange lt p dMed
                             -- Particle force, sum of all in range particle forces
                             (fpx, fpy) = foldl tadd (0.0, 0.0) $ map (computeParticleForce sp p) inRangeParticles
                             -- Wall force, pushes back on the particles when they exceed the bounds
                             (fwx, fwy) = computeWallForce sp p
                             pfmult = pforcemult sp
-                            (fx, fy) = (fpx * pfmult + fwx, fpy * pfmult + fwy)
+                            wfmult = wforcemult sp
+                            (fx, fy) = (fpx * pfmult + fwx * wfmult, fpy * pfmult + fwy * wfmult)
                             --Dampening and velocity
                             vx' = vx * (dampening ** dt) + fx * dt
                             vy' = vy * (dampening ** dt) + fy * dt
@@ -110,7 +91,7 @@ computeVelocity sp lt dt p = p {velocity = (vx', vy')}
 
 -- move particles with the set velocity
 moveParticle :: Double -> Particle -> Particle
-moveParticle dt p = p {position = newPos, colourIdx = colourIdx p}
+moveParticle dt p = seq newPos $ p {position = newPos}
                 where
                     (vx, vy) = velocity p
                     (x, y) = position p
@@ -120,8 +101,8 @@ moveParticle dt p = p {position = newPos, colourIdx = colourIdx p}
 generateRandomParticle :: RandomGen g => g -> (Particle, g)
 generateRandomParticle g = (P {position = (x, y), velocity = (vx, vy), colourIdx = cidx}, g3)
                             where
-                                (x, g1) = uniformR (0.0, 512.0) g
-                                (y, g2) = uniformR (0.0, 512.0) g1
+                                (x, g1) = uniformR (0.0, 1600.0) g
+                                (y, g2) = uniformR (0.0, 1000.0) g1
                                 (vx, g21) = uniformR (-10.0, 10.0) g2
                                 (vy, g22) = uniformR (-10.0, 10.0) g21
 

@@ -1,10 +1,10 @@
+{-# LANGUAGE BangPatterns #-}
 module PlGraphics (
     display
 ) where
 
 import Graphics.Rendering.OpenGL as GL
 import Graphics.UI.GLFW as GLFW
-import Control.Monad (forever)
 import System.Exit (exitSuccess)
 import ParticleLife
 import System.Random
@@ -57,14 +57,15 @@ closeWindow win =
 display :: IO ()
 display =
   do
-    inWindow <- openWindow "Particle Life" (512, 512)
-    resizeWindow inWindow 512 512
+    inWindow <- openWindow "Particle Life" (1600, 1000)
+    resizeWindow inWindow 1600 1000
 
     stdGen <- initStdGen
-    let (istate, g) = generateInitialState 500 stdGen
+    let (istate, g) = generateInitialState 5000 stdGen
     let sp = PLifeSP {
-      width = 512,
-      height = 512,
+      width = 1600,
+      height = 1000,
+      wforcemult = 10.0,
       pforcemult = 10.0,
       forceMatrix = fst $ generateRandomForceMatrix g
       }
@@ -90,16 +91,15 @@ onDisplay win sp state ptime =
           GL.clearColor $= Color4 0.2 0.2 0.2 1
           GL.clear [ColorBuffer]
 
-          let newstate = simulateStep sp (t - ptime) state
+          let !newstate = simulateStep sp (t - ptime) state
           renderState newstate
 
           GL.flush
 
           GLFW.swapBuffers win
         
-          forever $ do
-            GLFW.pollEvents
-            onDisplay win sp newstate t
+          GLFW.pollEvents
+          onDisplay win sp newstate t
 
 renderState :: ParticleState -> IO ()
 renderState state = do 
