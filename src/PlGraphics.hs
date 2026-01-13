@@ -40,7 +40,7 @@ openWindow title (sizex,sizey) =
     --GLFW.windowHint (GLFW.WindowHint'OpenGLProfile GLFW.OpenGLProfile'Core)
     GLFW.windowHint (GLFW.WindowHint'OpenGLProfile GLFW.OpenGLProfile'Compat)
 
-    GLFW.windowHint (GLFW.WindowHint'Resizable False)
+    GLFW.windowHint (GLFW.WindowHint'Resizable True)
     Just win <- GLFW.createWindow sizex sizey title Nothing Nothing
     GLFW.makeContextCurrent (Just win)
     GLFW.setWindowSizeCallback win (Just resizeWindow)
@@ -93,11 +93,13 @@ onDisplay win sp state ptime =
     case currentTime of
         Nothing -> return ()
         Just t -> do
-    
+          (w, h) <- GLFW.getFramebufferSize win
+          let !sp' = sp {width = w, height = h}
+
           GL.clearColor $= Color4 0.2 0.2 0.2 1
           GL.clear [ColorBuffer]
 
-          let !newstate = simulateStep sp (t - ptime) state
+          let !newstate = simulateStep sp' (t - ptime) state
           renderState newstate
 
           GL.flush
@@ -105,7 +107,7 @@ onDisplay win sp state ptime =
           GLFW.swapBuffers win
         
           GLFW.pollEvents
-          onDisplay win sp newstate t
+          onDisplay win sp' newstate t
 
 renderState :: ParticleState -> IO ()
 renderState state = do 

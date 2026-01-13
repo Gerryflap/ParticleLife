@@ -81,11 +81,11 @@ blockWallVelocity sp p = p {velocity = (vx', vy')}
                             (vx, vy) = velocity p
 
                             vx' | x < 0.0 && vx < 0.0 = -vx
-                                | x > w && x > 0.0 = -vx
+                                | x > w && vx > 0.0 = -vx
                                 | otherwise = vx
 
                             vy' | y < 0.0 && vy < 0.0 = -vy
-                                | y > h && y > 0.0 = -vy
+                                | y > h && vy > 0.0 = -vy
                                 | otherwise = vy
 
 
