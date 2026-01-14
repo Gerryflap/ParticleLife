@@ -3,6 +3,14 @@ Inspired by a Youtube video called ["Simulating Particle Life"](https://www.yout
 
 This toy repo contains a hacked together implementation of the concept in Haskell, using OpenGL and GLFW to render the simulation.
 
+The core idea of "particle life" is some simple forces that apply to all of the particles:
+
+1. If particles get too close, they repel eachother
+2. At a certain distance, particles are either attracted to or repelled from another particle based on their colours (there are usually a few different colours in the simulation)
+3. At an even larger distance the particles do not interact
+
+The table that determines the interactions between colours is initialized at random. It's not symmetric, so a red particle might be pulled towards a green one, while a green particle is pushed away by a red one.
+
 ## Installation
 If you have Haskell Stack installed, you should just be able to build the project using `stack build` and run using `stack run`.
 
@@ -28,3 +36,9 @@ For now, the parameters are still a bit spread out across the project, though a 
 
 - `dMed`, upper bound of the medium distance. Between `dShort` and `dMed` distance is where the magic happens. From `dShort` to the middle of the range the force between 2 particles linearly grows to the force dictated by the force matrix (based on the colours). And from the middle of the range to `dMed` the force linearly shrinks to 0 again. Recommended value is 60, but this setting has a huge effect on the sim, so by all means mess around with it.
 
+# Screenshots
+![](img/plife_1.png)
+
+![](img/plife_2.png)
+
+![](img/plife_3.png)
