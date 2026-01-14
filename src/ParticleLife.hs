@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE BangPatterns #-}
 
 module ParticleLife (
     generateInitialState,
@@ -14,16 +15,17 @@ import PlDefinitions
 import KdTrees
 import Control.Monad.State
 import Control.Monad (replicateM)
+import Control.Parallel.Strategies
 
 
 
 -- Compute new velocities based on forces, and then move the particles according to those velocities
 simulateStep :: SimulationParameters -> Double -> ParticleState -> ParticleState
-simulateStep sp dt pstate = pstate''
+simulateStep sp dt !pstate = pstate''
                         where
-                            lt = fromList pstate
+                            !lt = fromList pstate
                             -- Update velocities
-                            pstate' = map (computeVelocity sp lt dt) pstate
+                            pstate' = withStrategy (parListChunk 25 rdeepseq) $ map (computeVelocity sp lt dt) pstate
                             -- Move particles
                             pstate'' = map (moveParticle dt) pstate'
 

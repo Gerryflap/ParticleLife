@@ -1,3 +1,5 @@
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 module PlDefinitions (
     Particle(..),
     distance,
@@ -11,13 +13,17 @@ module PlDefinitions (
 
 import System.Random
 import Data.Array
-
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 data Particle = P {
     position :: (Double, Double),
     velocity :: (Double, Double),
     colourIdx :: Int
 } deriving (Show, Eq)
+
+deriving instance Generic Particle
+instance NFData Particle
 
 distance :: Particle -> Particle -> Double
 distance pa1 pa2 = sqrt ((x1 - x2) ** 2.0 + (y1 - y2) ** 2.0)
