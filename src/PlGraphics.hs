@@ -27,9 +27,9 @@ resizeWindow :: GLFW.WindowSizeCallback
 resizeWindow _ w h =
   do
     GL.viewport   $= (GL.Position 0 0, GL.Size (fromIntegral w) (fromIntegral h))
-    GL.matrixMode $= GL.Projection
+    GL.matrixMode $= GL.Modelview 0
     GL.loadIdentity
-    GL.ortho2D 0 (realToFrac w) (realToFrac h) 0   
+    GL.ortho 0 (realToFrac w) (realToFrac h) 0 (-1000) 1000
 
 openWindow :: String -> (Int, Int) -> IO GLFW.Window
 openWindow title (sizex,sizey) =
@@ -41,6 +41,8 @@ openWindow title (sizex,sizey) =
     -- Use core if you want compatibility with more modern stacks
     --GLFW.windowHint (GLFW.WindowHint'OpenGLProfile GLFW.OpenGLProfile'Core)
     GLFW.windowHint (GLFW.WindowHint'OpenGLProfile GLFW.OpenGLProfile'Compat)
+    GLFW.windowHint (GLFW.WindowHint'DepthBits $ Just 24)
+    GLFW.windowHint (GLFW.WindowHint'DoubleBuffer True)
 
     GLFW.windowHint (GLFW.WindowHint'Resizable True)
     Just win <- GLFW.createWindow sizex sizey title Nothing Nothing
@@ -63,15 +65,16 @@ display =
 
     stdGen <- initStdGen
 
-    let ncolours = 5
+    let ncolours = 7
     -- Particle count in the simulation
-    let pcount = 2500
+    let pcount = 5000
 
     let (mtx, stdGen2) = generateRandomForceMatrix ncolours stdGen
     let sp = PLifeSP {
       colours = ncolours,
       width = 1280,
       height = 720,
+      depth = 500,
       wforcemult = 1.0,
       pforcemult = 10.0,
       forceMatrix = mtx
@@ -104,7 +107,8 @@ onDisplay win sp state ptime =
           let !sp' = sp {width = w, height = h}
 
           GL.clearColor $= Color4 0.2 0.2 0.2 1
-          GL.clear [ColorBuffer]
+          GL.depthFunc $= Just GL.Less
+          GL.clear [ColorBuffer, DepthBuffer]
 
           let !newstate = simulateStep sp' (t - ptime) state
           renderState newstate
@@ -124,16 +128,23 @@ renderState state = do
 renderParticle :: Particle -> IO ()
 renderParticle p = 
   do
-    GL.currentColor $= particolour (colourIdx p)
+    let (x, y, z) = PlDefinitions.position p
+    GL.currentColor $= (multiCol ((z + 200.0)/700.0) $ particolour (colourIdx p))
     GL.vertex $ particlePosition p
 
+multiCol :: Double -> Color4 GL.GLfloat -> Color4 GL.GLfloat
+multiCol fv (Color4 r g b a) = Color4 nr ng nb a
+                              where
+                                v = realToFrac fv
+                                (nr, ng, nb) = (r * v, g * v, b * v)
 
 particlePosition :: Particle -> GL.Vertex3 GL.GLfloat
-particlePosition p = GL.Vertex3 x y (0.0 :: GLfloat)
+particlePosition p = GL.Vertex3 x y z
                     where 
-                      (xd, yd) = ParticleLife.position p
+                      (xd, yd, zd) = ParticleLife.position p
                       x = realToFrac xd
                       y = realToFrac yd
+                      z = realToFrac zd
 
 
 -- Gets the rendering colour of the particle

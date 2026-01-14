@@ -30,22 +30,23 @@ simulateStep sp dt !pstate = pstate''
                             pstate'' = map (moveParticle dt) pstate'
 
 -- Combine 2 tuples using the same function f for the 2 left and the 2 right values
-tcomb :: (Double -> Double -> Double) -> (Double, Double) -> (Double, Double) -> (Double, Double)
-tcomb f (x1, y1) (x2, y2) = (f x1 x2, f y1 y2)
+tcomb :: (Double -> Double -> Double) -> (Double, Double, Double) -> (Double, Double, Double) -> (Double, Double, Double)
+tcomb f (x1, y1, z1) (x2, y2, z2) = (f x1 x2, f y1 y2, f z1 z2)
 
 -- Combine 2 tuples by adding their values together
-tadd :: (Double, Double) -> (Double, Double) -> (Double, Double)
+tadd :: (Double, Double, Double) -> (Double, Double, Double) -> (Double, Double, Double)
 tadd = tcomb (+)
 
 dampening :: Double
 dampening = 0.7
 
-computeWallForce :: SimulationParameters -> Particle -> (Double, Double)
-computeWallForce sp p = (fx, fy)
+computeWallForce :: SimulationParameters -> Particle -> (Double, Double, Double)
+computeWallForce sp p = (fx, fy, fz)
                         where
                             w = fromIntegral $ width sp
                             h = fromIntegral $ height sp
-                            (x, y) = position p
+                            d = depth sp
+                            (x, y, z) = position p
                             fx  | x < 0.0 = -x
                                 | x > w = w - x
                                 | otherwise = 0.0
@@ -54,13 +55,18 @@ computeWallForce sp p = (fx, fy)
                                 | y > h = h - y
                                 | otherwise = 0.0
 
+                            fz  | z < 0.0 = -z
+                                | z > d = d - z
+                                | otherwise = 0.0
+
 blockWallVelocity ::  SimulationParameters -> Particle -> Particle
-blockWallVelocity sp p = p {velocity = (vx', vy')}
+blockWallVelocity sp p = p {velocity = (vx', vy', vz')}
                         where
                             w = fromIntegral $ width sp
-                            h = fromIntegral $ height sp                            
-                            (x, y) = position p
-                            (vx, vy) = velocity p
+                            h = fromIntegral $ height sp
+                            d = depth sp                      
+                            (x, y, z) = position p
+                            (vx, vy, vz) = velocity p
 
                             vx' | x < 0.0 && vx < 0.0 = -vx
                                 | x > w && vx > 0.0 = -vx
@@ -70,43 +76,51 @@ blockWallVelocity sp p = p {velocity = (vx', vy')}
                                 | y > h && vy > 0.0 = -vy
                                 | otherwise = vy
 
+                            vz' | z < 0.0 && vz < 0.0 = -vz
+                                | z > d && vz > 0.0 = -vz
+                                | otherwise = vz
+
 
 -- Compute new velocity of a particle without moving
 computeVelocity :: LookupTable lt => SimulationParameters -> lt -> Double -> Particle -> Particle
-computeVelocity sp lt dt p = blockWallVelocity sp (p {velocity = (vx', vy')})
+computeVelocity sp lt dt p = blockWallVelocity sp (p {velocity = (vx', vy', vz')})
                         where
-                            (vx, vy) = velocity p
+                            (vx, vy, vz) = velocity p
                             -- Find all particles in dMed range that are not the current particle
                             inRangeParticles = filter (p /=) $ findAllInRange lt p dMed
                             -- Particle force, sum of all in range particle forces
-                            (fpx, fpy) = foldl tadd (0.0, 0.0) $ map (computeParticleForce sp p) inRangeParticles
+                            (fpx, fpy, fpz) = foldl tadd (0.0, 0.0, 0.0) $ map (computeParticleForce sp p) inRangeParticles
                             -- Wall force, pushes back on the particles when they exceed the bounds
-                            (fwx, fwy) = computeWallForce sp p
+                            (fwx, fwy, fwz) = computeWallForce sp p
                             pfmult = pforcemult sp
                             wfmult = wforcemult sp
-                            (fx, fy) = (fpx * pfmult + fwx * wfmult, fpy * pfmult + fwy * wfmult)
+                            (fx, fy, fz) = (fpx * pfmult + fwx * wfmult, fpy * pfmult + fwy * wfmult, fpz * pfmult + fwz * wfmult)
                             --Dampening and velocity
                             vx' = vx * (dampening ** dt) + fx * dt
                             vy' = vy * (dampening ** dt) + fy * dt
+                            vz' = vz * (dampening ** dt) + fz * dt
 
 
 -- move particles with the set velocity
 moveParticle :: Double -> Particle -> Particle
 moveParticle dt p = seq newPos $ p {position = newPos}
                 where
-                    (vx, vy) = velocity p
-                    (x, y) = position p
-                    newPos = (x + vx * dt, y + vy * dt)
+                    (vx, vy, vz) = velocity p
+                    (x, y, z) = position p
+                    newPos = (x + vx * dt, y + vy * dt, z + vz * dt)
 
 
 generateRandomParticle :: RandomGen g => SimulationParameters -> State g Particle
 generateRandomParticle sp = do 
     x <- state (uniformR (0.0, fromIntegral $ width sp))
     y <- state (uniformR (0.0, fromIntegral $ height sp))
+    z <- state (uniformR (0.0, depth sp))
     vx <- state (uniformR (-10.0, 10.0))
     vy <- state (uniformR (-10.0, 10.0))
+    vz <- state (uniformR (-10.0, 10.0))
+
     cidx <- state (uniformR (1, colours sp))
-    pure (P {position = (x, y), velocity = (vx, vy), colourIdx = cidx})
+    pure (P {position = (x, y, z), velocity = (vx, vy, vz), colourIdx = cidx})
 
 generateInitialState :: RandomGen g => SimulationParameters -> Int -> g -> (ParticleState, g)
 generateInitialState sp particlecount gen = runState (replicateM particlecount (generateRandomParticle sp)) gen
@@ -134,16 +148,17 @@ computeForce fmul dist  | dist <= dShort = -1 * (1.0 - dist/dShort)
                             mrange = dMed - dShort
 
 -- Computes the directional force on p1, caused by p2.
-computeParticleForce :: SimulationParameters -> Particle -> Particle -> (Double, Double)
-computeParticleForce sp p1 p2 = (cosv * f, sinv * f)
+computeParticleForce :: SimulationParameters -> Particle -> Particle -> (Double, Double, Double)
+computeParticleForce sp p1 p2 = (xp * f, yp * f, zp * f)
                         where
                             fmat = forceMatrix sp
                             fmul = fmat ! (colourIdx p1, colourIdx p2)
-                            (x1, y1) = position p1
-                            (x2, y2) = position p2
+                            (x1, y1, z1) = position p1
+                            (x2, y2, z2) = position p2
                             d = distance p1 p2
-                            sinv = (y2 - y1) / d
-                            cosv = (x2 - x1) / d
+                            xp = (x2 - x1) / d
+                            yp = (y2 - y1) / d
+                            zp = (z2 - z1) / d
                             f = computeForce fmul d
 
                             

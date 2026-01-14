@@ -18,9 +18,12 @@ initEmptyKdTree :: KdTree
 initEmptyKdTree = Empty
 
 axisval :: Particle -> Int -> Double
-axisval p axis | axis == 0 = fst $ position p
-                | axis == 1 = snd $ position p
+axisval p axis  | axis == 0 = x
+                | axis == 1 = y
+                | axis == 2 = z
                 | otherwise = error "Unknown axis"
+                where
+                    (x, y, z) = position p
 
 
 getAll :: KdTree -> [Particle]
@@ -59,7 +62,7 @@ insertAll' axis xs  = Node median axis t1 t2
                         leftAndMiddleXs = filter (\po -> median > (axisval po axis)) xs
                         rightXs = filter (\po -> median <= (axisval po axis)) xs
 
-                        nextAxis = mod (axis + 1) 2
+                        nextAxis = mod (axis + 1) 3
                         t1 = insertAll' nextAxis leftAndMiddleXs
                         t2 = insertAll' nextAxis rightXs
 

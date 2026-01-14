@@ -48,7 +48,7 @@ library
     , random >=1.3
   default-language: Haskell2010
 
-executable ParticleLife-exe
+executable ParticleLife-3D-exe
   main-is: Main.hs
   other-modules:
       Paths_ParticleLife

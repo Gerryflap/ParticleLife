@@ -44,7 +44,7 @@ library:
   source-dirs: src
 
 executables:
-  ParticleLife-exe:
+  ParticleLife-3D-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

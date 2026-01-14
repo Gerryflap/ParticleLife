@@ -17,8 +17,8 @@ import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 
 data Particle = P {
-    position :: (Double, Double),
-    velocity :: (Double, Double),
+    position :: (Double, Double, Double),
+    velocity :: (Double, Double, Double),
     colourIdx :: Int
 } deriving (Show, Eq)
 
@@ -26,10 +26,10 @@ deriving instance Generic Particle
 instance NFData Particle
 
 distance :: Particle -> Particle -> Double
-distance pa1 pa2 = sqrt ((x1 - x2) ** 2.0 + (y1 - y2) ** 2.0)
+distance pa1 pa2 = sqrt ((x1 - x2) ** 2.0 + (y1 - y2) ** 2.0 + (z1 - z2) ** 2.0)
                     where
-                        (x1, y1) = position pa1
-                        (x2, y2) = position pa2
+                        (x1, y1, z1) = position pa1
+                        (x2, y2, z2) = position pa2
 
 type ParticleState = [Particle]
 
@@ -50,6 +50,7 @@ data SimulationParameters = PLifeSP {
     colours :: Int,
     width :: Int,
     height :: Int,
+    depth :: Double,
     -- Multiplier of the wall force
     wforcemult :: Double,
     -- Multiplier of the particle force
