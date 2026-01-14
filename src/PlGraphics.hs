@@ -64,6 +64,8 @@ display =
     stdGen <- initStdGen
 
     let ncolours = 5
+    -- Particle count in the simulation
+    let pcount = 2500
 
     let (mtx, stdGen2) = generateRandomForceMatrix ncolours stdGen
     let sp = PLifeSP {
@@ -75,7 +77,7 @@ display =
       forceMatrix = mtx
       }
 
-    let (istate, _) = generateInitialState sp 2500 stdGen2
+    let (istate, _) = generateInitialState sp pcount stdGen2
 
     inWindow <- openWindow "Particle Life" (width sp, height sp)
     resizeWindow inWindow (width sp) (height sp)
