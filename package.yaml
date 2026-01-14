@@ -25,7 +25,6 @@ dependencies:
 - GLFW-b
 - random >= 1.3
 - array
-- vector
 - mtl
 
 ghc-options:

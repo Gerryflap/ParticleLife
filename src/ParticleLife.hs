@@ -6,9 +6,6 @@ module ParticleLife (
     ParticleState,
     Particle(..),
     computeForce,
-    generateRandomForceMatrix,
-    SimulationParameters(..),
-    ForceMatrix
 ) where
 
 import System.Random
@@ -16,36 +13,19 @@ import Data.Array
 import PlDefinitions
 import KdTrees
 import Control.Monad.State
-import qualified Data.Vector as V
+import Control.Monad (replicateM)
 
-type ForceMatrix = Array (Int, Int) Double
 
-data SimulationParameters = PLifeSP {
-    -- Number of unique colour indices
-    colours :: Int,
-    width :: Int,
-    height :: Int,
-    -- Multiplier of the wall force
-    wforcemult :: Double,
-    -- Multiplier of the particle force
-    pforcemult :: Double,
-    forceMatrix :: ForceMatrix
-} deriving (Show)
-
-generateRandomForceMatrix :: SplitGen g => Int -> g -> (ForceMatrix, g)
-generateRandomForceMatrix ncolours gen = (listArray ((1,1), (ncolours,ncolours)) (uniformRs (-1.0, 1.0) cgen), newgen)
-                                where
-                                    (cgen, newgen) = splitGen gen
 
 -- Compute new velocities based on forces, and then move the particles according to those velocities
 simulateStep :: SimulationParameters -> Double -> ParticleState -> ParticleState
 simulateStep sp dt pstate = pstate''
                         where
-                            lt = fromList $ V.toList pstate
+                            lt = fromList pstate
                             -- Update velocities
-                            pstate' = V.map (computeVelocity sp lt dt) pstate
+                            pstate' = map (computeVelocity sp lt dt) pstate
                             -- Move particles
-                            pstate'' = V.map (moveParticle dt) pstate'
+                            pstate'' = map (moveParticle dt) pstate'
 
 -- Combine 2 tuples using the same function f for the 2 left and the 2 right values
 tcomb :: (Double -> Double -> Double) -> (Double, Double) -> (Double, Double) -> (Double, Double)
@@ -127,7 +107,7 @@ generateRandomParticle sp = do
     pure (P {position = (x, y), velocity = (vx, vy), colourIdx = cidx})
 
 generateInitialState :: RandomGen g => SimulationParameters -> Int -> g -> (ParticleState, g)
-generateInitialState sp particlecount gen = runState (V.replicateM particlecount (generateRandomParticle sp)) gen
+generateInitialState sp particlecount gen = runState (replicateM particlecount (generateRandomParticle sp)) gen
 
 -- End of the "short" distance range (starts at 0 distance)
 dShort :: Double

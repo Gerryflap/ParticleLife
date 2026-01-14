@@ -1,11 +1,13 @@
 {-# LANGUAGE BangPatterns #-}
 module PlGraphics (
-    display
+    display,
+    particolour
 ) where
 
 import Graphics.Rendering.OpenGL as GL
 import Graphics.UI.GLFW as GLFW
 import System.Exit (exitSuccess)
+import PlDefinitions
 import ParticleLife
 import System.Random
 
@@ -60,17 +62,20 @@ display =
 
 
     stdGen <- initStdGen
-    let (mtx, stdGen2) = generateRandomForceMatrix 5 stdGen
+
+    let ncolours = 10
+
+    let (mtx, stdGen2) = generateRandomForceMatrix ncolours stdGen
     let sp = PLifeSP {
-      colours = 5,
-      width = 900,
-      height = 900,
+      colours = ncolours,
+      width = 1280,
+      height = 720,
       wforcemult = 1.0,
       pforcemult = 10.0,
       forceMatrix = mtx
       }
 
-    let (istate, g) = generateInitialState sp 2000 stdGen2
+    let (istate, _) = generateInitialState sp 2000 stdGen2
 
     inWindow <- openWindow "Particle Life" (width sp, height sp)
     resizeWindow inWindow (width sp) (height sp)
@@ -138,5 +143,9 @@ particolour 4 = Color4 1.0 1.0 0.6 1
 particolour 5 = Color4 0.6 1.0 1.0 1
 particolour 6 = Color4 1.0 0.6 1.0 1
 particolour 7 = Color4 1.0 0.8 0.9 1
-particolour x = particolour (mod (x + 8) 8)
+particolour x = Color4 r g b 1 
+              where
+                (r, g1) = uniformR (0.0, 1.0) (mkStdGen (42 + x))
+                (g, g2) = uniformR (0.0, 1.0) g1
+                (b, _) = uniformR (0.0, 1.0) g2
                   
